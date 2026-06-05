@@ -4,10 +4,6 @@ services:
     container_name: v2board-unlock-checker
     # 推荐 host 网络：sing-box 会为每个节点开一个本地 mixed 端口。不用 host 的话，需要映射 BASE_PORT 起的一大段端口。
     network_mode: host
-    extra_hosts:
-      # 非 host 网络时可用 host.docker.internal 访问宿主机。
-      # 当前默认使用 network_mode: host，本机数据库通常直接用 127.0.0.1。
-      - "host.docker.internal:host-gateway"
     restart: "no"
     volumes:
       # 检测结果、生成的 sing-box 配置和代理映射输出目录。
@@ -33,11 +29,11 @@ services:
       # 默认留空，直接读取 V2Board .env 里的 DB_HOST、DB_PORT、DB_DATABASE、DB_USERNAME、DB_PASSWORD。
       # 当前默认 network_mode: host，本机运行时 .env 里的 DB_HOST=localhost 可以访问宿主机数据库。
       # 只有需要覆盖 .env 时才填写下面 DB_*，例如远程数据库或非标准部署。
-      DB_HOST: ""
-      DB_PORT: ""
-      DB_DATABASE: ""
-      DB_USERNAME: ""
-      DB_PASSWORD: ""
+      #DB_HOST: ""
+      #DB_PORT: ""
+      #DB_DATABASE: ""
+      #DB_USERNAME: ""
+      #DB_PASSWORD: ""
 
       # 数据库表前缀，默认 V2Board 是 v2_。
       DB_PREFIX: "v2_"
