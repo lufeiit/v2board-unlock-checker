@@ -1,16 +1,20 @@
-FROM debian:12-slim
+FROM alpine:3.20
 
 ARG SING_BOX_VERSION=1.12.0
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       bash ca-certificates curl default-mysql-client jq procps python3 \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+      bash \
+      ca-certificates \
+      curl \
+      jq \
+      mariadb-client \
+      procps \
+      python3
 
-RUN arch="$(dpkg --print-architecture)" \
+RUN arch="$(apk --print-arch)" \
     && case "$arch" in \
-       amd64) sb_arch="amd64" ;; \
-       arm64) sb_arch="arm64" ;; \
+       x86_64) sb_arch="amd64" ;; \
+       aarch64) sb_arch="arm64" ;; \
        *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
        esac \
     && curl -fsSL -o /tmp/sing-box.tar.gz \

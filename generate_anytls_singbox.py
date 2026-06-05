@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import shutil
 
 
 SUPPORTED_TABLE_SUFFIXES = {
@@ -22,6 +23,14 @@ SUPPORTED_TABLE_SUFFIXES = {
 }
 
 NON_NODE_TABLE_PATTERNS = ("group", "log", "route", "stat", "copy")
+
+
+def mysql_binary():
+    for command in ("mysql", "mariadb"):
+        path = shutil.which(command)
+        if path:
+            return path
+    raise RuntimeError("mysql client not found; install mysql or mariadb client")
 
 
 def read_env(path):
@@ -66,7 +75,7 @@ def mysql_query(env, query, skip_column_names=True):
         defaults_path = file.name
     os.chmod(defaults_path, 0o600)
     command = [
-        "mysql",
+        mysql_binary(),
         f"--defaults-extra-file={defaults_path}",
         "--batch",
         "--raw",
