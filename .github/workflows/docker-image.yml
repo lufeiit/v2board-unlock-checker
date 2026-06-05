@@ -5,6 +5,15 @@ on:
     branches:
       - main
       - master
+    paths:
+      - "Dockerfile"
+      - "check.sh"
+      - "parse_unlock_result.py"
+      - "generate_anytls_singbox.py"
+      - "check_anytls_batch.py"
+      - "docker-entrypoint.sh"
+      - ".dockerignore"
+      - ".github/workflows/docker-image.yml"
     tags:
       - "v*"
   workflow_dispatch:

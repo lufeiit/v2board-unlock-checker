@@ -16,6 +16,10 @@ services:
 
     # 推荐 host 网络：sing-box 会为每个节点开一个本地 mixed 端口。
     network_mode: host
+    extra_hosts:
+      # 让容器内可以用 host.docker.internal 访问宿主机服务。
+      # 如果 .env 里 DB_HOST=localhost，下面 environment.DB_HOST 会覆盖为这个宿主机地址。
+      - "host.docker.internal:host-gateway"
 
     restart: "no"
 
@@ -49,7 +53,7 @@ services:
       # 远程数据库模式：
       # 如果 V2BOARD_ENV_PATH 为空或容器内读不到 .env，就使用下面 DB_*。
       # .env 模式下也可以用这些变量覆盖 .env 中的同名配置。
-      DB_HOST: ""
+      DB_HOST: "host.docker.internal"
       DB_PORT: "3306"
       DB_DATABASE: ""
       DB_USERNAME: ""
