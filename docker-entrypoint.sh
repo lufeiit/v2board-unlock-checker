@@ -7,6 +7,7 @@ LIMIT="${LIMIT:-0}"
 START="${START:-0}"
 TIMEOUT="${TIMEOUT:-600}"
 PRECHECK_TIMEOUT="${PRECHECK_TIMEOUT:-15}"
+SCHEDULE_INTERVAL="${SCHEDULE_INTERVAL:-0}"
 
 V2BOARD_PATH="${V2BOARD_PATH:-/v2board}"
 V2BOARD_ENV_PATH="${V2BOARD_ENV_PATH:-}"
@@ -18,7 +19,9 @@ NODE_TYPES="${NODE_TYPES:-all}"
 EXCLUDE_NAMES="${EXCLUDE_NAMES:-测试节点1,测试节点2}"
 ADDRESS_MODE="${ADDRESS_MODE:-panel}"
 NODE_DOMAIN="${NODE_DOMAIN:-}"
-DOMAIN_TEMPLATE="${DOMAIN_TEMPLATE:-{label}.{domain}}"
+if [ -z "${DOMAIN_TEMPLATE:-}" ]; then
+  DOMAIN_TEMPLATE='{label}.{domain}'
+fi
 DOMAIN_LABEL_MAP="${DOMAIN_LABEL_MAP:-}"
 TLS_INSECURE="${TLS_INSECURE:-1}"
 
@@ -63,23 +66,54 @@ run_check() {
     $( [ "$FULL_V2BOARD_OUTPUT" = "1" ] && printf '%s' '--full-v2board-output' )
 }
 
+run_all_once() {
+  generate_config
+  sing-box run -c "$SINGBOX_CONFIG" &
+  pid="$!"
+  trap 'kill "$pid" 2>/dev/null || true; exit 143' INT TERM
+  sleep "${SINGBOX_START_WAIT:-3}"
+  status=0
+  run_check || status="$?"
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  trap - INT TERM
+  return "$status"
+}
+
+run_schedule() {
+  command_name="$1"
+  while true; do
+    echo "schedule: starting ${command_name} at $(date '+%Y-%m-%d %H:%M:%S')"
+    if "$command_name"; then
+      echo "schedule: ${command_name} finished at $(date '+%Y-%m-%d %H:%M:%S')"
+    else
+      status="$?"
+      echo "schedule: ${command_name} failed with code ${status} at $(date '+%Y-%m-%d %H:%M:%S')" >&2
+      if [ "$SCHEDULE_INTERVAL" = "0" ]; then
+        return "$status"
+      fi
+    fi
+
+    if [ "$SCHEDULE_INTERVAL" = "0" ]; then
+      break
+    fi
+    echo "schedule: sleeping ${SCHEDULE_INTERVAL}s"
+    sleep "$SCHEDULE_INTERVAL"
+  done
+}
+
 case "$MODE" in
   generate)
-    generate_config
+    run_schedule generate_config
     ;;
   singbox)
     exec sing-box run -c "$SINGBOX_CONFIG"
     ;;
   check)
-    run_check
+    run_schedule run_check
     ;;
   all)
-    generate_config
-    sing-box run -c "$SINGBOX_CONFIG" &
-    pid="$!"
-    trap 'kill "$pid" 2>/dev/null || true' EXIT
-    sleep "${SINGBOX_START_WAIT:-3}"
-    run_check
+    run_schedule run_all_once
     ;;
   *)
     echo "Unknown MODE: $MODE" >&2

@@ -24,7 +24,6 @@ proxies.json
 *-proxies.json
 
 docker-compose.yml
-docker-compose.build.yml
 README.md
 *.log
 *.pid
