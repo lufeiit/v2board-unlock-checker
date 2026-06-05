@@ -5,8 +5,8 @@ services:
     # 推荐 host 网络：sing-box 会为每个节点开一个本地 mixed 端口。不用 host 的话，需要映射 BASE_PORT 起的一大段端口。
     network_mode: host
     extra_hosts:
-      # 让容器内可以用 host.docker.internal 访问宿主机服务。
-      # 如果 .env 里 DB_HOST=localhost，下面 environment.DB_HOST 会覆盖为这个宿主机地址。
+      # 非 host 网络时可用 host.docker.internal 访问宿主机。
+      # 当前默认使用 network_mode: host，本机数据库通常直接用 127.0.0.1。
       - "host.docker.internal:host-gateway"
     restart: "no"
     volumes:
@@ -29,11 +29,12 @@ services:
       # 如果你想完全使用远程 DB_*，可把 V2BOARD_ENV_PATH 留空。
       V2BOARD_ENV_PATH: "/run/secrets/v2board.env"
 
-      # 远程数据库模式：
-      # 如果 V2BOARD_ENV_PATH 为空或容器内读不到 .env，就使用下面 DB_*。
-      # .env 模式下也可以用这些变量覆盖 .env 中的同名配置。
-      DB_HOST: "host.docker.internal"
-      DB_PORT: "3306"
+      # 数据库连接：
+      # 默认留空，直接读取 V2Board .env 里的 DB_HOST、DB_PORT、DB_DATABASE、DB_USERNAME、DB_PASSWORD。
+      # 当前默认 network_mode: host，本机运行时 .env 里的 DB_HOST=localhost 可以访问宿主机数据库。
+      # 只有需要覆盖 .env 时才填写下面 DB_*，例如远程数据库或非标准部署。
+      DB_HOST: ""
+      DB_PORT: ""
       DB_DATABASE: ""
       DB_USERNAME: ""
       DB_PASSWORD: ""

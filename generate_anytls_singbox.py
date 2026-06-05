@@ -248,7 +248,18 @@ def resolve_remote(row, args):
     if not args.domain:
         raise RuntimeError("--domain is required when --address-mode domain")
     label = domain_label(row, args)
-    host = args.domain_template.format(label=label, domain=args.domain)
+    try:
+        host = args.domain_template.format(label=label, domain=args.domain)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"invalid DOMAIN_TEMPLATE={args.domain_template!r}: use placeholders like "
+            "{label}.{domain}, and escape literal braces as {{ or }}"
+        ) from exc
+    except KeyError as exc:
+        raise RuntimeError(
+            f"invalid DOMAIN_TEMPLATE={args.domain_template!r}: unsupported placeholder {exc}; "
+            "only {label} and {domain} are supported"
+        ) from exc
     return host, first_port(row.get("server_port") or row["port"])
 
 
