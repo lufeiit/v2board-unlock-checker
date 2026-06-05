@@ -150,6 +150,9 @@ def main():
     parser.add_argument("--v2board-output", default="/www/wwwroot/v2board/storage/app/unlock-results/all.json", help="copy sanitized summary json here for V2Board frontend API, empty disables copy")
     parser.add_argument("--public-output", default="", help="write sanitized summary json here for read-only exposure, empty disables it")
     parser.add_argument("--full-v2board-output", action="store_true", help="copy full summary to --v2board-output instead of sanitized summary")
+    parser.add_argument("--no-summary-output", action="store_true", help="do not write all.json/public.json or copy summary outputs")
+    parser.add_argument("--node-id", default="", help="only check the node with this id")
+    parser.add_argument("--node-name", default="", help="only check nodes whose name contains this text")
     parser.add_argument("--limit", type=int, default=0, help="limit number of nodes, 0 means all")
     parser.add_argument("--start", type=int, default=0, help="start offset in proxy map")
     parser.add_argument("--timeout", type=int, default=600, help="timeout seconds for each node check")
@@ -157,6 +160,10 @@ def main():
     args = parser.parse_args()
 
     nodes = load_json(args.map)
+    if args.node_id:
+        nodes = [node for node in nodes if str(node.get("id", "")) == str(args.node_id)]
+    if args.node_name:
+        nodes = [node for node in nodes if args.node_name in str(node.get("name", ""))]
     if args.start:
         nodes = nodes[args.start :]
     if args.limit:
@@ -181,6 +188,9 @@ def main():
         node_type = node.get("type", "node")
         output_path = os.path.join(args.output_dir, f"{node_type}-{node['id']}.json")
         write_json(output_path, result)
+
+    if args.no_summary_output:
+        return
 
     summary_path = os.path.join(args.output_dir, "all.json")
     write_json(summary_path, all_results)

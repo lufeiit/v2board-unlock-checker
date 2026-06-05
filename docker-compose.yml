@@ -28,6 +28,7 @@ services:
       # 3600 = 每 1 小时执行一轮
       # 21600 = 每 6 小时执行一轮
       # 86400 = 每 24 小时执行一轮
+      # 容器启动时如果 OUTPUT_DIR/all.json 未超过这个间隔，会先等待剩余时间再检测。
       SCHEDULE_INTERVAL: "0"
 
       # 如果你想完全使用远程 DB_*，可把 V2BOARD_ENV_PATH 留空。
@@ -116,6 +117,14 @@ services:
 
       # 从代理列表第几个开始检测。
       START: "0"
+
+      # 调试单个节点：
+      # CHECK_NODE_ID 按节点 ID 精确筛选，例如 1001。
+      # CHECK_NODE_NAME 按节点名称包含匹配，例如 香港HK-01。
+      # NO_SUMMARY_OUTPUT=1 时只写单节点 json，不写 all.json/public.json，也不同步 V2BOARD_OUTPUT/PUBLIC_OUTPUT。
+      CHECK_NODE_ID: ""
+      CHECK_NODE_NAME: ""
+      NO_SUMMARY_OUTPUT: "0"
 
       # 单节点检测超时秒数。
       TIMEOUT: "600"

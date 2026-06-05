@@ -8,6 +8,9 @@ START="${START:-0}"
 TIMEOUT="${TIMEOUT:-600}"
 PRECHECK_TIMEOUT="${PRECHECK_TIMEOUT:-15}"
 SCHEDULE_INTERVAL="${SCHEDULE_INTERVAL:-0}"
+CHECK_NODE_ID="${CHECK_NODE_ID:-}"
+CHECK_NODE_NAME="${CHECK_NODE_NAME:-}"
+NO_SUMMARY_OUTPUT="${NO_SUMMARY_OUTPUT:-0}"
 
 V2BOARD_PATH="${V2BOARD_PATH:-/v2board}"
 V2BOARD_ENV_PATH="${V2BOARD_ENV_PATH:-}"
@@ -61,9 +64,36 @@ run_check() {
     --timeout "$TIMEOUT" \
     --precheck-timeout "$PRECHECK_TIMEOUT" \
     --output-dir "$OUTPUT_DIR" \
+    ${CHECK_NODE_ID:+--node-id "$CHECK_NODE_ID"} \
+    ${CHECK_NODE_NAME:+--node-name "$CHECK_NODE_NAME"} \
+    $( [ "$NO_SUMMARY_OUTPUT" = "1" ] && printf '%s' '--no-summary-output' ) \
     ${V2BOARD_OUTPUT:+--v2board-output "$V2BOARD_OUTPUT"} \
     ${PUBLIC_OUTPUT:+--public-output "$PUBLIC_OUTPUT"} \
     $( [ "$FULL_V2BOARD_OUTPUT" = "1" ] && printf '%s' '--full-v2board-output' )
+}
+
+sleep_until_summary_due() {
+  if [ "$SCHEDULE_INTERVAL" = "0" ] || [ "$NO_SUMMARY_OUTPUT" = "1" ]; then
+    return
+  fi
+
+  summary_path="${OUTPUT_DIR}/all.json"
+  if [ ! -f "$summary_path" ]; then
+    return
+  fi
+
+  summary_time="$(stat -c %Y "$summary_path" 2>/dev/null || true)"
+  if [ -z "$summary_time" ]; then
+    return
+  fi
+
+  now="$(date +%s)"
+  age="$((now - summary_time))"
+  if [ "$age" -lt "$SCHEDULE_INTERVAL" ]; then
+    remaining="$((SCHEDULE_INTERVAL - age))"
+    echo "schedule: ${summary_path} is ${age}s old, next check in ${remaining}s"
+    sleep "$remaining"
+  fi
 }
 
 run_all_once() {
@@ -82,6 +112,7 @@ run_all_once() {
 
 run_schedule() {
   command_name="$1"
+  sleep_until_summary_due
   while true; do
     echo "schedule: starting ${command_name} at $(date '+%Y-%m-%d %H:%M:%S')"
     if "$command_name"; then
