@@ -5,7 +5,7 @@ services:
     # 推荐 host 网络：sing-box 会为每个节点开一个本地 mixed 端口。不用 host 的话，需要映射 BASE_PORT 起的一大段端口。
     network_mode: host
     # SCHEDULE_INTERVAL=0 时跑完一轮退出；设置定时循环时建议改成 unless-stopped。
-    restart: "no"
+    restart: "unless-stopped"
     volumes:
       # 检测结果、生成的 sing-box 配置和代理映射输出目录。
       - ./data:/data
@@ -29,7 +29,7 @@ services:
       # 21600 = 每 6 小时执行一轮
       # 86400 = 每 24 小时执行一轮
       # 容器启动时如果 OUTPUT_DIR/all.json 未超过这个间隔，会先等待剩余时间再检测。
-      SCHEDULE_INTERVAL: "0"
+      SCHEDULE_INTERVAL: "86400"
 
       # 如果你想完全使用远程 DB_*，可把 V2BOARD_ENV_PATH 留空。
       V2BOARD_ENV_PATH: "/run/secrets/v2board.env"
@@ -79,7 +79,7 @@ services:
       # 自定义域名前缀映射：
       # 逗号格式：1001=hk01,特殊香港入口=hk02
       # JSON格式：{"1001":"hk01","特殊香港入口":"hk02"}
-      DOMAIN_LABEL_MAP: ""
+      #DOMAIN_LABEL_MAP: ""
 
       # TLS 跳过证书验证，通常保持 1。
       TLS_INSECURE: "1"
@@ -101,7 +101,7 @@ services:
       # 可选：额外输出一份脱敏 public.json 到只读 Web 目录。使用 nginx 暴露给 V2Board 后端读取，或远程检测机直接放在 Web 服务器上供 V2Board 拉取。
       # 用于“远程检测机只暴露静态 JSON，V2Board 主动拉取”的方案。
       # 例：PUBLIC_OUTPUT: "/data/public/public.json"
-      PUBLIC_OUTPUT: ""
+      #PUBLIC_OUTPUT: ""
 
       # 是否把完整 all.json 同步到 V2BOARD_OUTPUT。
       # 公开或跨服务器场景建议保持 0。
