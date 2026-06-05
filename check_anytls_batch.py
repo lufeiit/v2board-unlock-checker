@@ -125,9 +125,10 @@ def run_check(node, check_script, menu, timeout, precheck_timeout):
         check=False,
     )
     if proc.returncode != 0:
+        error_detail = proc.stderr.strip() or proc.stdout.strip()[-2000:] or f"check exited with {proc.returncode}"
         return {
             "node": node_meta(node),
-            "error": proc.stderr.strip() or f"check exited with {proc.returncode}",
+            "error": error_detail,
         }
     try:
         result = json.loads(proc.stdout)

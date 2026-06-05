@@ -6,8 +6,10 @@ RUN apk add --no-cache \
       bash \
       ca-certificates \
       curl \
+      grep \
       jq \
       mariadb-client \
+      openssl \
       procps \
       python3
 
