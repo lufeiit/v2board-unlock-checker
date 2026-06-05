@@ -29,6 +29,7 @@ services:
       # 21600 = 每 6 小时执行一轮
       # 86400 = 每 24 小时执行一轮
       # 容器启动时如果 OUTPUT_DIR/all.json 未超过这个间隔，会先等待剩余时间再检测。
+      # 设置 CHECK_NODE_ID 或 CHECK_NODE_NAME 调试单节点时，不检查 all.json 时间，直接检测。
       SCHEDULE_INTERVAL: "86400"
 
       # 如果你想完全使用远程 DB_*，可把 V2BOARD_ENV_PATH 留空。

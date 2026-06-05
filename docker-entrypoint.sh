@@ -76,6 +76,9 @@ sleep_until_summary_due() {
   if [ "$SCHEDULE_INTERVAL" = "0" ] || [ "$NO_SUMMARY_OUTPUT" = "1" ]; then
     return
   fi
+  if [ -n "$CHECK_NODE_ID" ] || [ -n "$CHECK_NODE_NAME" ]; then
+    return
+  fi
 
   summary_path="${OUTPUT_DIR}/all.json"
   if [ ! -f "$summary_path" ]; then
