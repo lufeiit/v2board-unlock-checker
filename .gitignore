@@ -9,6 +9,7 @@ v2board.env.*
 *.crt
 
 # Generated sing-box configs and proxy maps
+check2.sh
 anytls-singbox.json
 anytls-proxies.json
 singbox.json

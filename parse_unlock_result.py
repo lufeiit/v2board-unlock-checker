@@ -41,6 +41,22 @@ CURRENCY_COUNTRY_MAP = {
     "CAD": "CA",
     "AUD": "AU",
 }
+DISPLAY_COUNTRY_MAP = {
+    "CN": "中国",
+    "HK": "香港",
+    "TW": "台湾",
+    "JP": "日本",
+    "KR": "韩国",
+    "SG": "新加坡",
+    "US": "美国",
+    "GB": "英国",
+    "DE": "德国",
+    "FR": "法国",
+    "CA": "加拿大",
+    "AU": "澳大利亚",
+    "NL": "荷兰",
+    "EU": "欧洲",
+}
 NETWORK_RE = re.compile(
     r"(?:Your Network Provider|你的网络为)\s*:\s*(?P<isp>.*?)\s*\((?P<ip>[^)]*)\)",
     re.I,
@@ -50,12 +66,22 @@ AI_SERVICES = {
     "chatgpt",
     "google_gemini",
     "bing_region",
+    "claude",
 }
 
 OTHER_SERVICES = {
+    "apple_region",
+    "google_play_store",
     "steam_currency",
     "wikipedia_editability",
     "reddit",
+}
+
+REGION_VALUE_SERVICES = {
+    "apple_region",
+    "bing_region",
+    "google_play_store",
+    "steam_currency",
 }
 
 IGNORE_NAME_PREFIXES = (
@@ -199,6 +225,34 @@ def extract_country(value):
     return None, None
 
 
+def display_country(country_code, region_raw):
+    if country_code:
+        return DISPLAY_COUNTRY_MAP.get(country_code, country_code)
+    if region_raw:
+        normalized = region_raw.strip()
+        mapped = country_from_region(normalized)
+        if mapped:
+            return DISPLAY_COUNTRY_MAP.get(mapped, normalized)
+        return normalized
+    return None
+
+
+def display_value_for(key, value, country_code, region_raw):
+    if key == "steam_currency":
+        currency = value.strip().upper()
+        if CURRENCY_RE.match(currency):
+            return currency
+        return None
+    if key in {"apple_region", "bing_region"}:
+        return display_country(country_code, region_raw)
+    if key == "google_play_store":
+        country = display_country(country_code, region_raw)
+        if country and country.lower() != "china":
+            return country
+        return None
+    return None
+
+
 def parse_line(line):
     line = clean_line(line)
     if not line or ":" not in line:
@@ -228,9 +282,17 @@ def parse_line(line):
         return None
     country_code, region_raw = extract_country(value)
 
+    status = normalize_status(value)
+    # Codex改动：区域/货币类检测通常直接输出 HK/HKD/国家名，不带 Yes；前端只展示 yes，因此这里归一为可用。
+    if key in REGION_VALUE_SERVICES and status == "unknown" and value:
+        status = "yes"
+    # Codex改动：Google Play 检测到 China 时不视为可展示解锁结果，其它国家再展示国家。
+    if key == "google_play_store" and (country_code == "CN" or value.strip().lower() == "china"):
+        status = "no"
+
     item = {
         "name": name,
-        "status": normalize_status(value),
+        "status": status,
         "raw": value,
     }
 
@@ -245,6 +307,9 @@ def parse_line(line):
         item["country_code"] = country_code
     if region_raw and region_raw != country_code:
         item["region_raw"] = region_raw
+    display_value = display_value_for(key, value, country_code, region_raw)
+    if display_value:
+        item["display_value"] = display_value
 
     return category_for(key), key, item
 

@@ -51,7 +51,7 @@ def sanitize_service_group(group):
     sanitized = {}
     if not isinstance(group, dict):
         return sanitized
-    allowed = ("name", "status", "region", "country_code", "currency_code", "unlock_type")
+    allowed = ("name", "status", "region", "country_code", "currency_code", "unlock_type", "display_value")
     for key, value in group.items():
         if not isinstance(value, dict):
             continue
