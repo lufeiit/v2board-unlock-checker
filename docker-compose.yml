@@ -1,0 +1,118 @@
+services:
+  unlock-checker:
+    image: ghcr.io/lufeiit/v2board-unlock-checker:latest
+    container_name: v2board-unlock-checker
+    # 推荐 host 网络：sing-box 会为每个节点开一个本地 mixed 端口。不用 host 的话，需要映射 BASE_PORT 起的一大段端口。
+    network_mode: host
+    restart: "no"
+    volumes:
+      # 检测结果、生成的 sing-box 配置和代理映射输出目录。
+      - ./data:/data
+      # 把左侧 ./v2board.env 改成你的真实 V2Board .env 路径，例如：/www/wwwroot/v2board/.env:/run/secrets/v2board.env:ro
+      - /v2board目录/.env:/run/secrets/v2board.env:ro
+      # 如果要把结果给本机 V2Board 后端读取，挂载 storage 输出目录。
+      # 远程 V2Board 可改成同步目录，或将 V2BOARD_OUTPUT 留空。
+      - /v2board目录/storage/app/unlock-results:/v2board-unlock-results
+
+    environment:
+      # 运行模式：
+      # generate = 只生成 sing-box 配置和代理映射
+      # singbox  = 只运行 sing-box，使用已有 SINGBOX_CONFIG
+      # check    = 只检测，使用已有 PROXY_MAP
+      # all      = 生成配置 -> 启动 sing-box -> 批量检测
+      MODE: "all"
+
+      # 如果你想完全使用远程 DB_*，可把 V2BOARD_ENV_PATH 留空。
+      V2BOARD_ENV_PATH: "/run/secrets/v2board.env"
+
+      # 远程数据库模式：
+      # 如果 V2BOARD_ENV_PATH 为空或容器内读不到 .env，就使用下面 DB_*。
+      # .env 模式下也可以用这些变量覆盖 .env 中的同名配置。
+      DB_HOST: ""
+      DB_PORT: "3306"
+      DB_DATABASE: ""
+      DB_USERNAME: ""
+      DB_PASSWORD: ""
+
+      # 数据库表前缀，默认 V2Board 是 v2_。
+      DB_PREFIX: "v2_"
+
+      # 用哪个用户的 uuid 作为节点连接密码。
+      TEST_EMAIL: "测试用户邮箱"
+
+      # 本地代理监听地址和起始端口。
+      # 每个节点一个 socks5h/mixed 端口：BASE_PORT、BASE_PORT+1、BASE_PORT+2...
+      LISTEN: "127.0.0.1"
+      BASE_PORT: "21001"
+
+      # 协议筛选：
+      # all = 全部支持协议
+      # 可选：anytls,shadowsocks,trojan,vless,vmess,hysteria,tuic,v2node
+      NODE_TYPES: " anytls"
+
+      # 排除节点名称，多个用英文逗号分隔，完整名称匹配。
+      EXCLUDE_NAMES: "测试节点1,测试节点2"
+
+      # 地址模式：
+      # panel  = 国内 VPS 推荐，使用面板 host + port
+      # domain = 国外 VPS 推荐，使用 规则域名 + server_port
+      ADDRESS_MODE: "panel"
+
+      # ADDRESS_MODE=domain 时使用的域名后缀，拼接规则见 DOMAIN_TEMPLATE。
+      NODE_DOMAIN: "你的域名"
+
+      # 域名拼接模板，可用变量：
+      # {label}  = hk01 / jp02 / us10 等前缀
+      # {domain} = NODE_DOMAIN
+      DOMAIN_TEMPLATE: "{label}.{domain}"
+
+      # 自定义域名前缀映射：
+      # 逗号格式：1001=hk01,特殊香港入口=hk02
+      # JSON格式：{"1001":"hk01","特殊香港入口":"hk02"}
+      DOMAIN_LABEL_MAP: ""
+
+      # TLS 跳过证书验证，通常保持 1。
+      TLS_INSECURE: "1"
+
+      # 生成的 sing-box 配置路径。
+      SINGBOX_CONFIG: "/data/singbox.json"
+
+      # 生成的代理映射文件，批量检测脚本会读取它。
+      PROXY_MAP: "/data/proxies.json"
+
+      # 检测结果输出目录。
+      OUTPUT_DIR: "/data/unlock-results"
+
+      # 同步给 V2Board 后端 API 读取的汇总 JSON。
+      # 默认写入脱敏后的结果，不包含出口 IP、host、端口、代理地址和 raw 原始检测文本。
+      # 不需要同步时设为空：V2BOARD_OUTPUT=""
+      V2BOARD_OUTPUT: "/v2board-unlock-results/all.json"
+
+      # 可选：额外输出一份脱敏 public.json 到只读 Web 目录。使用 nginx 暴露给 V2Board 后端读取，或远程检测机直接放在 Web 服务器上供 V2Board 拉取。
+      # 用于“远程检测机只暴露静态 JSON，V2Board 主动拉取”的方案。
+      # 例：PUBLIC_OUTPUT: "/data/public/public.json"
+      PUBLIC_OUTPUT: ""
+
+      # 是否把完整 all.json 同步到 V2BOARD_OUTPUT。
+      # 公开或跨服务器场景建议保持 0。
+      # 1 会包含出口 IP、host、端口、代理地址和 raw 
+      # 0 原始检测文本，慎用！如果 V2Board 后端和检测机不在同一台服务器，强烈建议保持 0。
+      FULL_V2BOARD_OUTPUT: "1"
+
+      # check.sh 菜单编号：0 = Multination。
+      MENU: "0"
+
+      # LIMIT=0 检测全部；调试时可设 1、3。
+      LIMIT: "0"
+
+      # 从代理列表第几个开始检测。
+      START: "0"
+
+      # 单节点检测超时秒数。
+      TIMEOUT: "600"
+
+      # 检测前代理连通性预检超时秒数。
+      PRECHECK_TIMEOUT: "15"
+
+      # 启动 sing-box 后等待几秒再开始检测。
+      SINGBOX_START_WAIT: "3"
