@@ -141,8 +141,9 @@ validate_proxy() {
         exit 1
     fi
 
-    local port=$(echo "$1" | grep -woP ':\K[0-9]+$')
-    if [ "$port" -ge 65535 ]; then
+    # Codex改动：使用 Bash 截取代理端口，避免 socks5h:// 场景下 grep -w 提取为空。
+    local port="${1##*:}"
+    if [ -z "$port" ] || [ "$port" -ge 65535 ]; then
         echo -e "${Font_Red}Proxy Port invalid.${Font_Suffix}"
         exit 1
     fi
@@ -5535,6 +5536,11 @@ function showScriptTitle() {
 }
 
 function inputOptions() {
+    # Codex改动：JSON/批量模式禁止交互等待，避免 Docker 中卡在“按回车继续”。
+    if [ "${UNLOCK_JSON_MODE:-0}" = "1" ]; then
+        REGION_ID=0
+        return
+    fi
 
     while :; do
         if [ "$LANGUAGE" == 'en' ]; then
