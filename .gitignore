@@ -10,13 +10,15 @@ v2board.env.*
 
 # Generated sing-box configs and proxy maps
 check2.sh
-flclash-env.sh
+flclash*
 anytls-singbox.json
 anytls-proxies.json
 singbox.json
 proxies.json
 *-singbox.json
 *-proxies.json
+vnc*
+xst*
 
 # Runtime output
 toolchains/

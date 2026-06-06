@@ -942,6 +942,36 @@ function MediaUnlockTest_Dazn() {
     esac
 }
 
+function MediaUnlockTest_TikTok() {
+    local tmpresult=$(curl ${CURL_DEFAULT_OPTS} -sL 'https://www.tiktok.com/' --user-agent "${UA_BROWSER}")
+    if [[ "$tmpresult" = *"Please wait..."* ]]; then
+        tmpresult=$(curl ${CURL_DEFAULT_OPTS} -sL 'https://www.tiktok.com/explore' --user-agent "${UA_BROWSER}")
+    fi
+    if [ -z "$tmpresult" ]; then
+        echo -n -e "\r TikTok:\t\t\t\t${Font_Red}Failed (Network Connection)${Font_Suffix}\n"
+        return
+    fi
+
+    local region=$(echo "$tmpresult" | grep '"region":' | sed 's/.*"region"//' | cut -f2 -d'"')
+    if [ -n "$region" ]; then
+        echo -n -e "\r TikTok:\t\t\t\t${Font_Green}Yes (Region: ${region})${Font_Suffix}\n"
+        return
+    fi
+
+    local gzipResult=$(curl ${CURL_DEFAULT_OPTS} -sL \
+        -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9' \
+        -H 'Accept-Encoding: gzip' \
+        -H 'Accept-Language: en' \
+        'https://www.tiktok.com/' --user-agent "${UA_BROWSER}" | gunzip 2>/dev/null)
+    local gzipRegion=$(echo "$gzipResult" | grep '"region":' | sed 's/.*"region"//' | cut -f2 -d'"')
+    if [ -n "$gzipRegion" ]; then
+        echo -n -e "\r TikTok:\t\t\t\t${Font_Yellow}IDC IP (Region: ${gzipRegion})${Font_Suffix}\n"
+        return
+    fi
+
+    echo -n -e "\r TikTok:\t\t\t\t${Font_Red}No${Font_Suffix}\n"
+}
+
 
 function MediaUnlockTest_HuluJP() {
     if [ "${USE_IPV6}" == 1 ]; then
@@ -4585,18 +4615,17 @@ function WebTest_Gemini() {
 }
 
 function WebTest_Claude() {
-    local UA_Browser="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-    local response=$(curl ${CURL_DEFAULT_OPTS} -s -L -A "${UA_Browser}" -o /dev/null -w '%{url_effective}' "https://claude.ai/")
+    local response=$(curl ${CURL_DEFAULT_OPTS} -s -L -A "${UA_BROWSER}" -o /dev/null -w '%{url_effective}' "https://claude.ai/")
     if [ -z "$response" ]; then
-        echo -e "\r Claude:\t\t\t\t${Font_Red}Failed (Network Connection)${Font_Suffix}\n"
+        echo -n -e "\r Claude:\t\t\t\t${Font_Red}Failed (Network Connection)${Font_Suffix}\n"
         return
     fi
-    if [[ "$response" == "https://claude.ai/" ]]; then
-        echo -e "\r Claude:\t\t\t\t${Font_Green}Yes${Font_Suffix}\n"
+    if [[ "$response" == https://claude.ai* ]]; then
+        echo -n -e "\r Claude:\t\t\t\t${Font_Green}Yes${Font_Suffix}\n"
     elif [[ "$response" == "https://www.anthropic.com/app-unavailable-in-region" ]]; then
-        echo -e "\r Claude:\t\t\t\t${Font_Red}No${Font_Suffix}\n"
+        echo -n -e "\r Claude:\t\t\t\t${Font_Red}No${Font_Suffix}\n"
     else
-        echo -e "\r Claude:\t\t\t\t${Font_Yellow}Unknown (${response})${Font_Suffix}\n"
+        echo -n -e "\r Claude:\t\t\t\t${Font_Red}No${Font_Suffix}\n"
     fi
 }
 
@@ -5026,6 +5055,7 @@ function Global_UnlockTest() {
     # Codex改动：默认只检测面板展示需要的媒体、AI 与商店/货币项目。
     local result=$(
         MediaUnlockTest_Dazn &
+        MediaUnlockTest_TikTok &
         MediaUnlockTest_DisneyPlus &
         MediaUnlockTest_Netflix &
         MediaUnlockTest_YouTube_Premium &
@@ -5033,7 +5063,7 @@ function Global_UnlockTest() {
         MediaUnlockTest_Spotify &
     )
     wait
-    local array=("Dazn:" "Disney+:" "Netflix:" "YouTube Premium:" "Amazon Prime Video:" "Spotify Registration:")
+    local array=("Dazn:" "TikTok:" "Disney+:" "Netflix:" "YouTube Premium:" "Amazon Prime Video:" "Spotify Registration:")
     echo_result ${result} ${array}
     local result=$(
         RegionTest_Bing &
@@ -5509,11 +5539,11 @@ function inputOptions() {
     while :; do
         if [ "$LANGUAGE" == 'en' ]; then
             echo -e "${Font_Blue}Press ENTER to run the compact unlock test${Font_Suffix}"
-            echo -e "${Font_SkyBlue}Services: Dazn, Disney+, Netflix, YouTube Premium, Amazon Prime Video, Spotify, Bing, Apple, ChatGPT, Gemini, Claude, Google Play, Steam${Font_Suffix}"
+            echo -e "${Font_SkyBlue}Services: Dazn, TikTok, Disney+, Netflix, YouTube Premium, Amazon Prime Video, Spotify, Bing, Apple, ChatGPT, Gemini, Claude, Google Play, Steam${Font_Suffix}"
             read -p "Press ENTER to continue:" num
         else
             echo -e "${Font_Blue}按回车运行精简解锁检测${Font_Suffix}"
-            echo -e "${Font_SkyBlue}检测项：Dazn、Disney+、Netflix、YouTube Premium、Amazon Prime Video、Spotify、Bing、Apple、ChatGPT、Gemini、Claude、Google Play、Steam${Font_Suffix}"
+            echo -e "${Font_SkyBlue}检测项：Dazn、TikTok、Disney+、Netflix、YouTube Premium、Amazon Prime Video、Spotify、Bing、Apple、ChatGPT、Gemini、Claude、Google Play、Steam${Font_Suffix}"
             read -p "按回车继续:" num
         fi
 
