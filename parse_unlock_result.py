@@ -13,7 +13,7 @@ CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
 STATUS_TOKEN_VALUES = {"YES", "NO", "N/A"}
 FIXED_WIDTH_STATUS_RE = re.compile(
     r"^(?P<name>.+?)\s{2,}(?P<value>(?:yes|no|failed|failure|unsupported|unsupport|n/a|"
-    r"originals only|oversea only|app only|website only|idc ip|available\b|"
+    r"unexpected|originals only|oversea only|app only|website only|idc ip|available\b|"
     r"[A-Z]{2,3})(?:\s*\(.*\))?)$",
     re.I,
 )
@@ -74,6 +74,7 @@ AI_SERVICES = {
     "chatgpt",
     "openai",
     "openai_api",
+    "openai_chatgpt",
     "google_gemini",
     "gemini",
     "bing_region",
@@ -81,6 +82,7 @@ AI_SERVICES = {
     "copilot",
     "microsoft_copilot",
     "github_copilot",
+    "quora_poe",
     "claude",
     "anthropic_claude",
     "claude_api",
@@ -97,13 +99,28 @@ AI_SERVICES = {
     "deepseek",
     "mistral",
     "mistral_ai",
+    "perplexity_ai",
     "notion_ai",
     "vercel_v0",
+    "x_ai_grok",
+    "byte_dance_coze",
+    "bytedance_coze",
     "cursor",
     "windsurf",
+    "moonshot_kimi",
     "kimi",
     "qwen",
     "doubao",
+}
+
+IGNORE_SERVICE_KEYS = {
+    "bytedance_coze",
+    "byte_dance_coze",
+    "coze",
+    "扣子",
+    "deepseek",
+    "moonshot_kimi",
+    "kimi",
 }
 
 OTHER_SERVICES = {
@@ -182,24 +199,27 @@ def detect_section(line):
     if not raw:
         return None
     normalized = SECTION_CLEAN_RE.sub("", raw).lower()
+    normalized = re.sub(r"\((?:ipv4|ipv6)\)", "", normalized)
     if not normalized:
         return None
-    if normalized in {"ai", "aigc", "人工智能", "ai检测", "aigc检测"}:
+    if normalized in {"ai", "aigc", "人工智能", "ai检测", "aigc检测"} or normalized.startswith(("ai(", "aigc(")):
         return "ai"
     if normalized in {"other", "others", "misc", "其他", "其它", "商店", "游戏", "forum", "game"}:
         return "other"
-    if normalized in {"multination", "media", "流媒体", "跨国平台", "跨国", "global"}:
+    if normalized in {"multination", "media", "流媒体", "跨国平台", "跨国", "global", "globe"}:
         return "media"
     return None
 
 
 def category_for(key, section=None):
-    if key in AI_SERVICES:
-        return "ai"
     if key in OTHER_SERVICES:
         return "other"
-    if section in {"ai", "other", "media"}:
+    if section == "ai":
+        return "ai"
+    if section in {"other", "media"}:
         return section
+    if key in AI_SERVICES:
+        return "ai"
     return "media"
 
 
@@ -223,6 +243,8 @@ def normalize_status(value):
         return "no"
     if "failed" in lower:
         return "failed"
+    if "unexpected" in lower:
+        return "unexpected"
     if "unsupport" in lower:
         return "unsupported"
     return "unknown"
@@ -355,6 +377,9 @@ def parse_line(line, section=None):
 
     key = service_key(name)
     if not key:
+        return None
+    # Codex改动：扣子、DeepSeek、Kimi 属于中国地区服务，不参与节点解锁展示。
+    if key in IGNORE_SERVICE_KEYS:
         return None
     country_code, region_raw = extract_country(value)
 
