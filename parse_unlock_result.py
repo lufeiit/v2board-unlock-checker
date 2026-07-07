@@ -10,6 +10,13 @@ COUNTRY_RE = re.compile(r"^[A-Z]{2}$")
 REGION_RE = re.compile(r"Region:\s*([A-Za-z0-9_-]+)")
 DISNEY_SOON_RE = re.compile(r"Available For \[Disney\+\s+([A-Za-z]{2})\] Soon", re.I)
 CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
+STATUS_TOKEN_VALUES = {"YES", "NO", "N/A"}
+FIXED_WIDTH_STATUS_RE = re.compile(
+    r"^(?P<name>.+?)\s{2,}(?P<value>(?:yes|no|failed|failure|unsupported|unsupport|n/a|"
+    r"originals only|oversea only|app only|website only|idc ip|available\b|"
+    r"[A-Z]{2,3})(?:\s*\(.*\))?)$",
+    re.I,
+)
 COUNTRY_NAME_MAP = {
     "hong kong": "HK",
     "taiwan": "TW",
@@ -100,8 +107,10 @@ AI_SERVICES = {
 }
 
 OTHER_SERVICES = {
+    "apple",
     "apple_region",
     "google_play_store",
+    "steam",
     "steam_currency",
     "wikipedia_editability",
     "reddit",
@@ -145,7 +154,8 @@ IGNORE_VALUE_PREFIXES = (
 
 def clean_line(line):
     line = ANSI_RE.sub("", line).replace("\r", "")
-    line = re.sub(r"^[=\-\s\[\]A-Za-z]+$", "", line)
+    # Codex改动：只清理纯分隔线，不能清掉 "Claude    NO" 这类无地区的英文检测行。
+    line = re.sub(r"^[=\-\s\[\]【】|:：]+$", "", line)
     return line.strip()
 
 
@@ -155,6 +165,16 @@ def service_key(name):
     key = key.replace("&", " and ")
     key = re.sub(r"[^a-z0-9]+", "_", key)
     return key.strip("_")
+
+
+def split_service_line(line):
+    fixed_match = FIXED_WIDTH_STATUS_RE.match(line)
+    if fixed_match:
+        return fixed_match.group("name").strip(), fixed_match.group("value").strip()
+    if ":" not in line:
+        return None, None
+    name, value = line.split(":", 1)
+    return name.strip(), value.strip()
 
 
 def detect_section(line):
@@ -223,6 +243,8 @@ def country_from_region(region):
         return None
     region = region.strip()
     region_upper = region.upper()
+    if region_upper in STATUS_TOKEN_VALUES:
+        return None
     if COUNTRY_RE.match(region_upper):
         return region_upper
     normalized = region.lower()
@@ -239,10 +261,12 @@ def extract_region(value):
         return disney_soon_match.group(1).strip()
 
     normalized = value.strip()
+    if normalized.upper() in STATUS_TOKEN_VALUES:
+        return None
     if normalized.lower() in COUNTRY_NAME_MAP:
         return normalized
 
-    tokens = re.findall(r"\b[A-Z]{2}\b", value)
+    tokens = [token for token in re.findall(r"\b[A-Z]{2}\b", value) if token not in STATUS_TOKEN_VALUES]
     if tokens:
         return tokens[-1]
 
@@ -259,6 +283,7 @@ def extract_country(value):
         return country_from_region(region), region
 
     tokens = re.findall(r"\b[A-Z]{2}\b", value)
+    tokens = [token for token in tokens if token not in STATUS_TOKEN_VALUES]
     if tokens:
         return tokens[-1], tokens[-1]
 
@@ -291,7 +316,7 @@ def display_value_for(key, value, country_code, region_raw):
         if CURRENCY_RE.match(currency):
             return currency
         return None
-    if key in {"apple_region", "bing_region"}:
+    if key in {"apple", "apple_region", "bing", "bing_region"}:
         return display_country(country_code, region_raw)
     if key == "google_play_store":
         country = display_country(country_code, region_raw)
@@ -304,12 +329,15 @@ def display_value_for(key, value, country_code, region_raw):
 def parse_line(line, section=None):
     line = clean_line(line)
     if not line or ":" not in line:
-        return None
+        fixed_name, fixed_value = split_service_line(line)
+        if not fixed_name or not fixed_value:
+            return None
     if re.search(r"https?://|//[A-Za-z0-9.-]+\.[A-Za-z]{2,}", line):
         return None
 
-    name, value = line.split(":", 1)
-    name = name.strip()
+    name, value = split_service_line(line)
+    if not name or value is None:
+        return None
     value = re.sub(r"\s+", " ", value).strip()
     if not name or not value:
         return None
