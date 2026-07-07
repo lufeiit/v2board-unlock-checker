@@ -1,6 +1,7 @@
 FROM alpine:3.20
 
 ARG SING_BOX_VERSION=1.12.0
+ARG UNLOCK_TEST_DOWNLOAD_BASE=https://unlock.icmp.ing/test/latest
 
 RUN apk add --no-cache \
       bash \
@@ -25,6 +26,16 @@ RUN arch="$(apk --print-arch)" \
     && mv "/tmp/sing-box-${SING_BOX_VERSION}-linux-${sb_arch}/sing-box" /usr/local/bin/sing-box \
     && chmod +x /usr/local/bin/sing-box \
     && rm -rf /tmp/sing-box*
+
+RUN arch="$(apk --print-arch)" \
+    && case "$arch" in \
+       x86_64) unlock_arch="amd64" ;; \
+       aarch64) unlock_arch="arm64" ;; \
+       *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL -o /usr/local/bin/unlock-test \
+       "${UNLOCK_TEST_DOWNLOAD_BASE}/unlock-test_linux_${unlock_arch}" \
+    && chmod +x /usr/local/bin/unlock-test
 
 WORKDIR /app
 
