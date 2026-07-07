@@ -34,7 +34,12 @@ run_json_mode() {
     local output_file
     output_file="$(mktemp)"
     # Codex改动：新版 unlock-test 可能把部分检测/分区输出写到 stderr，JSON 模式统一收集后交给 parser 过滤。
-    UNLOCK_JSON_MODE=1 bash "$0" "${args[@]}" >"$output_file" 2>&1
+    # Codex改动：批量检测通过 UNLOCK_MENU 自动选择菜单，避免 Docker 非交互下只跑默认/卡住。
+    if [ -n "${UNLOCK_MENU:-}" ]; then
+        printf '%s\n' "$UNLOCK_MENU" | UNLOCK_JSON_MODE=1 bash "$0" "${args[@]}" >"$output_file" 2>&1
+    else
+        UNLOCK_JSON_MODE=1 bash "$0" "${args[@]}" >"$output_file" 2>&1
+    fi
     local status=$?
     "$SCRIPT_DIR/parse_unlock_result.py" <"$output_file"
     rm -f "$output_file"

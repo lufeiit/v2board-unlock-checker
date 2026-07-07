@@ -9,6 +9,12 @@ services:
     volumes:
       # 检测结果、生成的 sing-box 配置和代理映射输出目录。
       - ./data:/data
+      # 本地脚本挂载到容器，便于更新检测解析逻辑后无需等待远程镜像重新打包。
+      - ./check.sh:/app/check.sh:ro
+      - ./parse_unlock_result.py:/app/parse_unlock_result.py:ro
+      - ./check_anytls_batch.py:/app/check_anytls_batch.py:ro
+      - ./generate_anytls_singbox.py:/app/generate_anytls_singbox.py:ro
+      - ./docker-entrypoint.sh:/app/docker-entrypoint.sh:ro
       # 把左侧 ./v2board.env 改成你的真实 V2Board .env 路径，例如：/www/wwwroot/v2board/.env:/run/secrets/v2board.env:ro
       - /v2board目录/.env:/run/secrets/v2board.env:ro
       # 如果要把结果给本机 V2Board 后端读取，挂载 storage 输出目录。
@@ -110,8 +116,9 @@ services:
       # 0 原始检测文本，慎用！如果 V2Board 后端和检测机不在同一台服务器，强烈建议保持 0。
       FULL_V2BOARD_OUTPUT: "1"
 
-      # check.sh 菜单编号：0 = Multination。
-      MENU: "0"
+      # check.sh 菜单编号：0 = Globe/跨国平台，11 = AI 平台。
+      # 默认只跑前端需要的跨国媒体和 AI 检测。
+      MENU: "0 11"
 
       # LIMIT=0 检测全部；调试时可设 1、3。
       LIMIT: "0"

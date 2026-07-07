@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="${MODE:-all}"
-MENU="${MENU:-0}"
+MENU="${MENU:-0 11}"
 LIMIT="${LIMIT:-0}"
 START="${START:-0}"
 TIMEOUT="${TIMEOUT:-600}"

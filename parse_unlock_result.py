@@ -12,7 +12,7 @@ DISNEY_SOON_RE = re.compile(r"Available For \[Disney\+\s+([A-Za-z]{2})\] Soon", 
 CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
 STATUS_TOKEN_VALUES = {"YES", "NO", "N/A"}
 FIXED_WIDTH_STATUS_RE = re.compile(
-    r"^(?P<name>.+?)\s{2,}(?P<value>(?:yes|no|failed|failure|unsupported|unsupport|n/a|"
+    r"^(?P<name>.+?)\s{2,}(?P<value>(?:yes|no|err|error|failed|failure|unsupported|unsupport|n/a|"
     r"unexpected|originals only|oversea only|app only|website only|idc ip|available\b|"
     r"[A-Z]{2,3})(?:\s*\(.*\))?)$",
     re.I,
@@ -242,6 +242,8 @@ def normalize_status(value):
     if re.search(r"\bno\b", lower):
         return "no"
     if "failed" in lower:
+        return "failed"
+    if lower in {"err", "error"}:
         return "failed"
     if "unexpected" in lower:
         return "unexpected"
