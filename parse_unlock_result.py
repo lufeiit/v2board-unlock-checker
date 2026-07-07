@@ -61,6 +61,7 @@ NETWORK_RE = re.compile(
     r"(?:Your Network Provider|你的网络为)\s*:\s*(?P<isp>.*?)\s*\((?P<ip>[^)]*)\)",
     re.I,
 )
+SECTION_CLEAN_RE = re.compile(r"[\s=\-\[\]【】|:：]+")
 
 AI_SERVICES = {
     "chatgpt",
@@ -156,11 +157,29 @@ def service_key(name):
     return key.strip("_")
 
 
-def category_for(key):
+def detect_section(line):
+    raw = ANSI_RE.sub("", line).replace("\r", "").strip()
+    if not raw:
+        return None
+    normalized = SECTION_CLEAN_RE.sub("", raw).lower()
+    if not normalized:
+        return None
+    if normalized in {"ai", "aigc", "人工智能", "ai检测", "aigc检测"}:
+        return "ai"
+    if normalized in {"other", "others", "misc", "其他", "其它", "商店", "游戏", "forum", "game"}:
+        return "other"
+    if normalized in {"multination", "media", "流媒体", "跨国平台", "跨国", "global"}:
+        return "media"
+    return None
+
+
+def category_for(key, section=None):
     if key in AI_SERVICES:
         return "ai"
     if key in OTHER_SERVICES:
         return "other"
+    if section in {"ai", "other", "media"}:
+        return section
     return "media"
 
 
@@ -282,7 +301,7 @@ def display_value_for(key, value, country_code, region_raw):
     return None
 
 
-def parse_line(line):
+def parse_line(line, section=None):
     line = clean_line(line)
     if not line or ":" not in line:
         return None
@@ -340,7 +359,7 @@ def parse_line(line):
     if display_value:
         item["display_value"] = display_value
 
-    return category_for(key), key, item
+    return category_for(key, section), key, item
 
 
 def parse_network_line(line):
@@ -387,12 +406,17 @@ def main():
         "other": {},
     }
 
+    current_section = None
     for line in sys.stdin:
+        section = detect_section(line)
+        if section:
+            current_section = section
+            continue
         network = parse_network_line(line)
         if network:
             result["node"].update(network)
             continue
-        parsed = parse_line(line)
+        parsed = parse_line(line, current_section)
         if not parsed:
             continue
         category, key, item = parsed

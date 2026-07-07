@@ -33,7 +33,8 @@ run_json_mode() {
 
     local output_file
     output_file="$(mktemp)"
-    UNLOCK_JSON_MODE=1 bash "$0" "${args[@]}" >"$output_file"
+    # Codex改动：新版 unlock-test 可能把部分检测/分区输出写到 stderr，JSON 模式统一收集后交给 parser 过滤。
+    UNLOCK_JSON_MODE=1 bash "$0" "${args[@]}" >"$output_file" 2>&1
     local status=$?
     "$SCRIPT_DIR/parse_unlock_result.py" <"$output_file"
     rm -f "$output_file"
