@@ -61,6 +61,10 @@ services:
       # 每个节点一个 socks5h/mixed 端口：BASE_PORT、BASE_PORT+1、BASE_PORT+2...
       LISTEN: "127.0.0.1"
       BASE_PORT: "21001"
+      # 如果 BASE_PORT 端口段被占用，自动按 PORT_RETRY_STEP 后移重试。
+      # 默认会尝试 21001、22001、23001、24001、25001、26001。
+      PORT_RETRY_COUNT: "5"
+      PORT_RETRY_STEP: "1000"
 
       # 协议筛选：
       # all = 全部支持协议

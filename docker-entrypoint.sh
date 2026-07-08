@@ -18,6 +18,8 @@ DB_PREFIX="${DB_PREFIX:-v2_}"
 TEST_EMAIL="${TEST_EMAIL:-测试用户邮箱}"
 LISTEN="${LISTEN:-127.0.0.1}"
 BASE_PORT="${BASE_PORT:-21001}"
+PORT_RETRY_COUNT="${PORT_RETRY_COUNT:-5}"
+PORT_RETRY_STEP="${PORT_RETRY_STEP:-1000}"
 NODE_TYPES="${NODE_TYPES:-all}"
 EXCLUDE_NAMES="${EXCLUDE_NAMES:-测试节点1,测试节点2}"
 ADDRESS_MODE="${ADDRESS_MODE:-panel}"
@@ -52,6 +54,21 @@ generate_config() {
     --domain-template "$DOMAIN_TEMPLATE" \
     ${DOMAIN_LABEL_MAP:+--domain-label-map "$DOMAIN_LABEL_MAP"} \
     ${TLS_INSECURE:+--insecure}
+}
+
+start_singbox() {
+  singbox_log="${SINGBOX_LOG:-/tmp/sing-box.log}"
+  : > "$singbox_log"
+  sing-box run -c "$SINGBOX_CONFIG" >"$singbox_log" 2>&1 &
+  pid="$!"
+  sleep "${SINGBOX_START_WAIT:-3}"
+  if kill -0 "$pid" 2>/dev/null; then
+    return 0
+  fi
+  wait "$pid" 2>/dev/null || true
+  echo "sing-box failed to start with BASE_PORT=${BASE_PORT}" >&2
+  sed -n '1,120p' "$singbox_log" >&2 || true
+  return 1
 }
 
 run_check() {
@@ -100,11 +117,28 @@ sleep_until_summary_due() {
 }
 
 run_all_once() {
-  generate_config
-  sing-box run -c "$SINGBOX_CONFIG" &
-  pid="$!"
+  original_base_port="$BASE_PORT"
+  attempt=0
+  pid=""
+
+  while [ "$attempt" -le "$PORT_RETRY_COUNT" ]; do
+    if [ "$attempt" -gt 0 ]; then
+      BASE_PORT="$((original_base_port + attempt * PORT_RETRY_STEP))"
+      echo "retrying with BASE_PORT=${BASE_PORT}" >&2
+    fi
+    generate_config
+    if start_singbox; then
+      break
+    fi
+    attempt="$((attempt + 1))"
+  done
+
+  if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
+    echo "sing-box could not start after $((PORT_RETRY_COUNT + 1)) attempts" >&2
+    return 1
+  fi
+
   trap 'kill "$pid" 2>/dev/null || true; exit 143' INT TERM
-  sleep "${SINGBOX_START_WAIT:-3}"
   status=0
   run_check || status="$?"
   kill "$pid" 2>/dev/null || true
