@@ -141,8 +141,10 @@ services:
       # 单节点检测超时秒数。
       TIMEOUT: "600"
 
-      # 检测前代理连通性预检超时秒数。
-      PRECHECK_TIMEOUT: "15"
+      # 检测前代理连通性预检超时秒数和重试次数。
+      # 预检会通过 socks5h 测试多个外网地址；失败详情会输出到 Docker 日志。
+      PRECHECK_TIMEOUT: "20"
+      PRECHECK_RETRIES: "2"
 
       # 启动 sing-box 后等待几秒再开始检测。
       SINGBOX_START_WAIT: "3"

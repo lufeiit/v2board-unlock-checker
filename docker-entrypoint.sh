@@ -7,6 +7,7 @@ LIMIT="${LIMIT:-0}"
 START="${START:-0}"
 TIMEOUT="${TIMEOUT:-600}"
 PRECHECK_TIMEOUT="${PRECHECK_TIMEOUT:-15}"
+PRECHECK_RETRIES="${PRECHECK_RETRIES:-2}"
 SCHEDULE_INTERVAL="${SCHEDULE_INTERVAL:-0}"
 CHECK_NODE_ID="${CHECK_NODE_ID:-}"
 CHECK_NODE_NAME="${CHECK_NODE_NAME:-}"
@@ -33,6 +34,7 @@ TLS_INSECURE="${TLS_INSECURE:-1}"
 SINGBOX_CONFIG="${SINGBOX_CONFIG:-/data/singbox.json}"
 PROXY_MAP="${PROXY_MAP:-/data/proxies.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-/data/unlock-results}"
+export SINGBOX_LOG="${SINGBOX_LOG:-/tmp/sing-box.log}"
 V2BOARD_OUTPUT="${V2BOARD_OUTPUT:-}"
 PUBLIC_OUTPUT="${PUBLIC_OUTPUT:-}"
 FULL_V2BOARD_OUTPUT="${FULL_V2BOARD_OUTPUT:-0}"
@@ -57,7 +59,7 @@ generate_config() {
 }
 
 start_singbox() {
-  singbox_log="${SINGBOX_LOG:-/tmp/sing-box.log}"
+  singbox_log="$SINGBOX_LOG"
   : > "$singbox_log"
   sing-box run -c "$SINGBOX_CONFIG" >"$singbox_log" 2>&1 &
   pid="$!"
@@ -80,6 +82,7 @@ run_check() {
     --start "$START" \
     --timeout "$TIMEOUT" \
     --precheck-timeout "$PRECHECK_TIMEOUT" \
+    --precheck-retries "$PRECHECK_RETRIES" \
     --output-dir "$OUTPUT_DIR" \
     ${CHECK_NODE_ID:+--node-id "$CHECK_NODE_ID"} \
     ${CHECK_NODE_NAME:+--node-name "$CHECK_NODE_NAME"} \

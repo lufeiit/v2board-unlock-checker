@@ -8,7 +8,26 @@ import sys
 import time
 
 
-def proxy_precheck(proxy, timeout):
+PRECHECK_TARGETS = (
+    ("ipify64", "https://api64.ipify.org", "plain"),
+    ("ipify4", "https://api.ipify.org", "plain"),
+    ("cloudflare_trace", "https://www.cloudflare.com/cdn-cgi/trace", "cloudflare_trace"),
+)
+
+
+def parse_precheck_ip(output, output_type):
+    output = (output or "").strip()
+    if not output:
+        return ""
+    if output_type == "cloudflare_trace":
+        for line in output.splitlines():
+            if line.startswith("ip="):
+                return line.split("=", 1)[1].strip()
+        return ""
+    return output.splitlines()[0].strip()
+
+
+def curl_precheck_target(proxy, timeout, name, url, output_type):
     proc = subprocess.run(
         [
             "curl",
@@ -19,16 +38,44 @@ def proxy_precheck(proxy, timeout):
             str(timeout),
             "--max-time",
             str(timeout),
-            "https://api64.ipify.org",
+            url,
         ],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
     )
-    if proc.returncode != 0:
-        return False, proc.stderr.strip() or f"curl exited with {proc.returncode}"
-    return True, proc.stdout.strip()
+    if proc.returncode == 0:
+        outbound_ip = parse_precheck_ip(proc.stdout, output_type)
+        if outbound_ip:
+            return True, outbound_ip
+        return False, f"{name}: empty or unparseable response"
+    detail = proc.stderr.strip() or proc.stdout.strip() or f"curl exited with {proc.returncode}"
+    return False, f"{name}: {detail}"
+
+
+def proxy_precheck(proxy, timeout, retries):
+    errors = []
+    for attempt in range(1, retries + 2):
+        for name, url, output_type in PRECHECK_TARGETS:
+            ok, detail = curl_precheck_target(proxy, timeout, name, url, output_type)
+            if ok:
+                return True, detail
+            errors.append(f"attempt {attempt}/{retries + 1} {detail}")
+        if attempt <= retries:
+            time.sleep(1)
+    return False, " | ".join(errors[-12:])
+
+
+def read_tail(path, max_lines=80):
+    if not path or not os.path.exists(path):
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as file:
+            lines = file.readlines()
+        return "".join(lines[-max_lines:]).strip()
+    except OSError:
+        return ""
 
 
 def load_json(path):
@@ -94,9 +141,17 @@ def write_json(path, data):
     os.replace(tmp_path, path)
 
 
-def run_check(node, check_script, menu, timeout, precheck_timeout):
-    ok, precheck = proxy_precheck(node["proxy"], precheck_timeout)
+def run_check(node, check_script, menu, timeout, precheck_timeout, precheck_retries):
+    ok, precheck = proxy_precheck(node["proxy"], precheck_timeout, precheck_retries)
     if not ok:
+        print(
+            f"precheck failed for {node.get('id')} {node.get('name')} via {node.get('proxy')}: {precheck}",
+            file=sys.stderr,
+        )
+        singbox_tail = read_tail(os.getenv("SINGBOX_LOG", ""))
+        if singbox_tail:
+            print("sing-box log tail:", file=sys.stderr)
+            print(singbox_tail, file=sys.stderr)
         return {
             "node": node_meta(node),
             "error": f"proxy precheck failed: {precheck}",
@@ -159,6 +214,7 @@ def main():
     parser.add_argument("--start", type=int, default=0, help="start offset in proxy map")
     parser.add_argument("--timeout", type=int, default=600, help="timeout seconds for each node check")
     parser.add_argument("--precheck-timeout", type=int, default=15, help="timeout seconds for proxy connectivity precheck")
+    parser.add_argument("--precheck-retries", type=int, default=int(os.getenv("PRECHECK_RETRIES", "2")), help="retry count for proxy connectivity precheck")
     args = parser.parse_args()
 
     nodes = load_json(args.map)
@@ -176,7 +232,7 @@ def main():
     for index, node in enumerate(nodes, 1):
         print(f"[{index}/{len(nodes)}] checking {node['id']} {node['name']} via {node['proxy']}", file=sys.stderr)
         started_at = int(time.time())
-        result = run_check(node, args.check, args.menu, args.timeout, args.precheck_timeout)
+        result = run_check(node, args.check, args.menu, args.timeout, args.precheck_timeout, args.precheck_retries)
         result.setdefault("node", {}).update(
             {
                 "id": node["id"],
